@@ -42,18 +42,11 @@ export const postApi = {
   // 获取单个申请
   getPost: (id) => request(`/posts/${id}`),
 
-  // 创建申请
-  createPost: async (formData) => {
-    const response = await fetch(`${API_BASE}/posts`, {
-      method: 'POST',
-      body: formData, // FormData 对象，不需要设置 Content-Type
-    });
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || '创建失败');
-    }
-    return response.json();
-  },
+  // 创建申请（发送 JSON，图片用 base64）
+  createPost: (data) => request('/posts', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
 
   // 删除申请
   deletePost: (id, userId) => request(`/posts/${id}`, {

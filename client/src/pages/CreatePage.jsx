@@ -18,7 +18,7 @@ export default function CreatePage({ onBack, user, onCreated }) {
   // 处理图片选择
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files)
-    if (files.length + images.length > 3) {
+    if (files.length + imagePreviews.length > 3) {
       alert('最多只能上传 3 张图片')
       return
     }
@@ -77,21 +77,16 @@ export default function CreatePage({ onBack, user, onCreated }) {
     setIsSubmitting(true)
 
     try {
-      // 构建 FormData
-      const formData = new FormData()
-      formData.append('title', title.trim())
-      formData.append('price', price)
-      formData.append('reason', reason.trim())
-      formData.append('category', category)
-      formData.append('anonymous', anonymous)
-      formData.append('author_id', user.id)
-
-      // 添加图片
-      images.forEach(file => {
-        formData.append('images', file)
+      // 构建 JSON 数据（图片用 base64）
+      const result = await postApi.createPost({
+        title: title.trim(),
+        price: Number(price),
+        reason: reason.trim(),
+        category,
+        anonymous,
+        author_id: user.id,
+        images: imagePreviews, // base64 图片数组
       })
-
-      const result = await postApi.createPost(formData)
       alert('发布成功！')
       onCreated(result.id)
     } catch (error) {
@@ -147,7 +142,7 @@ export default function CreatePage({ onBack, user, onCreated }) {
             ))}
 
             {/* 添加图片按钮 */}
-            {images.length < 3 && (
+            {imagePreviews.length < 3 && (
               <label className="w-24 h-24 flex-shrink-0 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-indigo-400 transition-colors">
                 <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
