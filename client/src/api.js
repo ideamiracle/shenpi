@@ -12,8 +12,20 @@ async function request(url, options = {}) {
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || '请求失败');
+    // 尝试解析错误响应，失败则返回状态码信息
+    let errorMsg = `服务器错误 (${response.status})`;
+    try {
+      const error = await response.json();
+      errorMsg = error.error || error.detail || errorMsg;
+    } catch {
+      // 非 JSON 响应（如 Vercel 502 页面）
+      errorMsg = response.status === 502
+        ? '服务器暂时不可用，请稍后重试'
+        : response.status === 413
+          ? '数据过大，请减少图片数量或尺寸'
+          : errorMsg;
+    }
+    throw new Error(errorMsg);
   }
 
   return response.json();
