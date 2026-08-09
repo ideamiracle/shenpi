@@ -15,25 +15,50 @@ export default function CreatePage({ onBack, user, onCreated }) {
   const [imagePreviews, setImagePreviews] = useState([]) // 预览 URL 数组
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // 压缩图片（限制最大 800px，质量 0.7）
+  const compressImage = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const img = new Image()
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          const maxSize = 800
+          let { width, height } = img
+          if (width > maxSize || height > maxSize) {
+            if (width > height) { height = (height / width) * maxSize; width = maxSize }
+            else { width = (width / height) * maxSize; height = maxSize }
+          }
+          canvas.width = width
+          canvas.height = height
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height)
+          resolve(canvas.toDataURL('image/jpeg', 0.7))
+        }
+        img.onerror = () => resolve(e.target.result) // 压缩失败用原图
+        img.src = e.target.result
+      }
+      reader.onerror = () => resolve(null)
+      reader.readAsDataURL(file)
+    })
+  }
+
   // 处理图片选择
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const files = Array.from(e.target.files)
     if (files.length + imagePreviews.length > 3) {
       alert('最多只能上传 3 张图片')
       return
     }
 
-    // 添加图片
     setImages(prev => [...prev, ...files])
 
-    // 生成预览
-    files.forEach(file => {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setImagePreviews(prev => [...prev, e.target.result])
+    // 压缩后生成预览
+    for (const file of files) {
+      const compressed = await compressImage(file)
+      if (compressed) {
+        setImagePreviews(prev => [...prev, compressed])
       }
-      reader.readAsDataURL(file)
-    })
+    }
   }
 
   // 删除图片
@@ -91,7 +116,9 @@ export default function CreatePage({ onBack, user, onCreated }) {
       onCreated(result.id)
     } catch (error) {
       console.error('发布失败:', error)
-      alert('发布失败，请重试')
+      // 显示具体错误原因便于排查
+      const msg = error.message || '未知错误'
+      alert(`发布失败：${msg}\n请检查网络后重试`)
     } finally {
       setIsSubmitting(false)
     }

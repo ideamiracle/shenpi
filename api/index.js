@@ -118,7 +118,7 @@ async function initDB() {
 
 // ========== Express 应用 ==========
 const app = express();
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '10mb' })); // 允许 base64 图片上传
 
 // 初始化数据库（冷启动时执行一次）
 let dbReady = false;
@@ -230,23 +230,28 @@ app.get('/api/posts/:id', async (req, res) => {
 });
 
 app.post('/api/posts', async (req, res) => {
-  const { title, price, reason, category, anonymous, author_id, images } = req.body;
-  if (!title || !price || !reason || !category || !author_id) {
-    return res.status(400).json({ error: '缺少必填字段' });
-  }
-
-  const postId = uuidv4();
-  await sql`INSERT INTO posts (id, title, price, reason, category, anonymous, author_id) VALUES (${postId}, ${title}, ${Number(price)}, ${reason}, ${category}, ${anonymous ? 1 : 0}, ${author_id})`;
-
-  // 保存图片 URL（base64 或普通 URL）
-  if (images && Array.isArray(images)) {
-    for (let i = 0; i < images.length; i++) {
-      await sql`INSERT INTO post_images (id, post_id, url, sort_order) VALUES (${uuidv4()}, ${postId}, ${images[i]}, ${i})`;
+  try {
+    const { title, price, reason, category, anonymous, author_id, images } = req.body || {};
+    if (!title || !price || !reason || !category || !author_id) {
+      return res.status(400).json({ error: '缺少必填字段', received: { title: !!title, price: !!price, reason: !!reason, category: !!category, author_id: !!author_id } });
     }
-  }
 
-  const rows = await sql`SELECT p.*, u.nickname as author_name FROM posts p LEFT JOIN users u ON p.author_id = u.id WHERE p.id = ${postId}`;
-  res.json(rows[0]);
+    const postId = uuidv4();
+    await sql`INSERT INTO posts (id, title, price, reason, category, anonymous, author_id) VALUES (${postId}, ${title}, ${Number(price)}, ${reason}, ${category}, ${anonymous ? 1 : 0}, ${author_id})`;
+
+    // 保存图片 URL（base64 或普通 URL）
+    if (images && Array.isArray(images) && images.length > 0) {
+      for (let i = 0; i < images.length; i++) {
+        await sql`INSERT INTO post_images (id, post_id, url, sort_order) VALUES (${uuidv4()}, ${postId}, ${images[i]}, ${i})`;
+      }
+    }
+
+    const rows = await sql`SELECT p.*, u.nickname as author_name FROM posts p LEFT JOIN users u ON p.author_id = u.id WHERE p.id = ${postId}`;
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('创建申请失败:', err);
+    res.status(500).json({ error: '创建申请失败', detail: err.message });
+  }
 });
 
 app.delete('/api/posts/:id', async (req, res) => {
