@@ -274,8 +274,31 @@ export default function DetailPage({ postId, onBack, user, requireLogin }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="inline-block w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-gray-50 animate-pulse">
+        {/* 顶部导航骨架 */}
+        <div className="bg-white shadow-sm px-4 py-3 flex items-center justify-between">
+          <div className="h-5 w-16 bg-gray-200 rounded" />
+          <div className="h-5 w-16 bg-gray-200 rounded" />
+          <div className="w-12" />
+        </div>
+        {/* 内容骨架 */}
+        <div className="bg-white p-4 mb-2 space-y-4">
+          <div className="h-64 bg-gray-200 rounded-xl" />
+          <div className="flex justify-between">
+            <div className="h-7 bg-gray-200 rounded w-1/2" />
+            <div className="h-7 bg-gray-200 rounded w-24" />
+          </div>
+          <div className="h-4 bg-gray-200 rounded w-3/4" />
+          <div className="space-y-2">
+            <div className="h-4 bg-gray-200 rounded w-full" />
+            <div className="h-4 bg-gray-200 rounded w-2/3" />
+          </div>
+          <div className="h-12 bg-gray-200 rounded-xl w-full" />
+          <div className="flex gap-3">
+            <div className="flex-1 h-14 bg-gray-200 rounded-xl" />
+            <div className="flex-1 h-14 bg-gray-200 rounded-xl" />
+          </div>
+        </div>
       </div>
     )
   }
@@ -319,6 +342,7 @@ export default function DetailPage({ postId, onBack, user, requireLogin }) {
                   key={idx}
                   src={img}
                   alt={`${post.title} ${idx + 1}`}
+                  loading="lazy"
                   className="w-full h-64 object-cover flex-shrink-0 snap-center"
                 />
               ))}

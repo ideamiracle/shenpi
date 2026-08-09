@@ -130,6 +130,7 @@ export default function CreatePage({ onBack, user, onCreated }) {
                 <img
                   src={preview}
                   alt={`预览 ${index + 1}`}
+                  loading="lazy"
                   className="w-full h-full object-cover rounded-xl"
                 />
                 <button

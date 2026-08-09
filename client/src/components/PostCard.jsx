@@ -13,8 +13,8 @@ const categoryColors = {
 }
 
 // 申请卡片组件
-export default function PostCard({ post, onClick, user, requireLogin }) {
-  const [voteStatus, setVoteStatus] = useState(null) // 用户的投票状态
+export default function PostCard({ post, onClick, user, requireLogin, voteStatus: initialVoteStatus }) {
+  const [voteStatus, setVoteStatus] = useState(initialVoteStatus ?? null) // 用户的投票状态
   const [approveCount, setApproveCount] = useState(post.approve_count)
   const [rejectCount, setRejectCount] = useState(post.reject_count)
   const [isVoting, setIsVoting] = useState(false)
@@ -24,14 +24,21 @@ export default function PostCard({ post, onClick, user, requireLogin }) {
   const totalCount = approveCount + rejectCount
   const approveRate = totalCount > 0 ? Math.round((approveCount / totalCount) * 100) : 50
 
-  // 获取用户的投票状态
+  // 同步外部投票状态
   useEffect(() => {
-    if (user) {
+    if (initialVoteStatus !== undefined) {
+      setVoteStatus(initialVoteStatus);
+    }
+  }, [initialVoteStatus]);
+
+  // 仅在未传入投票状态时单独获取
+  useEffect(() => {
+    if (initialVoteStatus === undefined && user) {
       voteApi.getVoteStatus(post.id, user.id).then(res => {
         setVoteStatus(res.voted)
       }).catch(() => {})
     }
-  }, [post.id, user])
+  }, [post.id, user, initialVoteStatus])
 
   // 处理投票
   const handleVote = async (e, type) => {
@@ -134,6 +141,7 @@ export default function PostCard({ post, onClick, user, requireLogin }) {
             <img
               src={post.images[0]}
               alt={post.title}
+              loading="lazy"
               className="w-full h-full object-cover"
             />
           </div>

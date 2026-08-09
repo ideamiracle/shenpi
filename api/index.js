@@ -167,7 +167,7 @@ app.get('/api/users/:id', async (req, res) => {
 
 // ========== 申请 API ==========
 app.get('/api/posts', async (req, res) => {
-  const { page = 1, limit = 10, category, sort = 'hot' } = req.query;
+  const { page = 1, limit = 10, category, sort = 'hot', include_stats } = req.query;
   const offset = (Number(page) - 1) * Number(limit);
   const params = [];
 
@@ -193,13 +193,32 @@ app.get('/api/posts', async (req, res) => {
   const listSql = `SELECT p.*, u.nickname as author_name, u.avatar as author_avatar FROM posts p LEFT JOIN users u ON p.author_id = u.id ${where} ${orderBy} LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`;
   const listResult = await sql(listSql, listParams);
 
-  const posts = [];
-  for (const post of listResult) {
-    const imgs = await sql`SELECT url FROM post_images WHERE post_id = ${post.id} ORDER BY sort_order`;
-    posts.push({ ...post, images: imgs.map(r => r.url), anonymous: !!post.anonymous });
+  // 批量获取所有图片（一次查询替代 N 次，关键性能优化）
+  const postIds = listResult.map(p => p.id);
+  const imagesMap = {};
+  if (postIds.length > 0) {
+    const allImages = await sql`SELECT post_id, url FROM post_images WHERE post_id = ANY(${postIds}) ORDER BY sort_order`;
+    allImages.forEach(img => {
+      if (!imagesMap[img.post_id]) imagesMap[img.post_id] = [];
+      imagesMap[img.post_id].push(img.url);
+    });
   }
 
-  res.json({ posts, total, page: Number(page), limit: Number(limit) });
+  const posts = listResult.map(post => ({
+    ...post,
+    images: imagesMap[post.id] || [],
+    anonymous: !!post.anonymous
+  }));
+
+  // 构建响应
+  const response = { posts, total, page: Number(page), limit: Number(limit) };
+
+  // 合并统计查询：减少一次 HTTP 请求
+  if (include_stats === 'true') {
+    response.stats = await computeStats();
+  }
+
+  res.json(response);
 });
 
 app.get('/api/posts/:id', async (req, res) => {
@@ -288,6 +307,18 @@ app.get('/api/posts/:id/vote/:userId', async (req, res) => {
   res.json({ voted: rows.length > 0 ? rows[0].type : null });
 });
 
+// 批量获取投票状态（一次查询替代 N 次）(Task #14)
+app.post('/api/votes/batch', async (req, res) => {
+  const { user_id, post_ids } = req.body;
+  if (!user_id || !post_ids || !Array.isArray(post_ids) || post_ids.length === 0) {
+    return res.json({});
+  }
+  const rows = await sql`SELECT post_id, type FROM votes WHERE user_id = ${user_id} AND post_id = ANY(${post_ids})`;
+  const result = {};
+  rows.forEach(r => { result[r.post_id] = r.type; });
+  res.json(result);
+});
+
 // ========== 评论 API ==========
 app.get('/api/posts/:id/comments', async (req, res) => {
   const { type, sort = 'new' } = req.query;
@@ -341,8 +372,8 @@ app.post('/api/comments/:id/like', async (req, res) => {
   }
 });
 
-// ========== 统计 API ==========
-app.get('/api/stats', async (req, res) => {
+// ========== 统计工具函数（可复用，避免重复查询） ==========
+async function computeStats() {
   const posts = await sql`SELECT COUNT(*) as count FROM posts WHERE status = 'active'`;
   const votes = await sql`SELECT COUNT(*) as count FROM votes`;
   const comments = await sql`SELECT COUNT(*) as count FROM comments`;
@@ -356,7 +387,7 @@ app.get('/api/stats', async (req, res) => {
   const ta = Number(approvalStats[0]?.ta || 0);
   const tr = Number(approvalStats[0]?.tr || 0);
 
-  res.json({
+  return {
     total_posts: Number(posts[0].count),
     total_votes: Number(votes[0].count),
     total_comments: Number(comments[0].count),
@@ -366,7 +397,12 @@ app.get('/api/stats', async (req, res) => {
     category_stats: catStats.map(c => ({ ...c, count: Number(c.count), total_votes: Number(c.total_votes) })),
     hot_posts: hotPosts.map(p => ({ ...p, hot_score: Number(p.hot_score) })),
     controversial_posts: controversial.map(p => ({ ...p, gap: Number(p.gap), total: Number(p.total) })),
-  });
+  };
+}
+
+// ========== 统计 API ==========
+app.get('/api/stats', async (req, res) => {
+  res.json(await computeStats());
 });
 
 // ========== 健康检查 ==========

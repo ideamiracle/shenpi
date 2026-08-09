@@ -75,8 +75,29 @@ export default function ProfilePage({ user, onLogout, onGoToDetail }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="inline-block w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-gray-50 animate-pulse">
+        {/* 头部骨架 */}
+        <div className="bg-indigo-600 pt-12 pb-8 px-4">
+          <div className="flex items-center justify-between mb-6">
+            <div className="h-7 w-24 bg-white/20 rounded" />
+            <div className="h-8 w-20 bg-white/20 rounded-lg" />
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full bg-white/20" />
+            <div className="space-y-2">
+              <div className="h-6 w-24 bg-white/20 rounded" />
+              <div className="h-4 w-32 bg-white/20 rounded" />
+            </div>
+          </div>
+        </div>
+        {/* 统计卡片骨架 */}
+        <div className="px-4 -mt-4">
+          <div className="bg-white rounded-2xl shadow-lg p-4 grid grid-cols-3 gap-4">
+            <div className="flex flex-col items-center gap-2"><div className="h-8 w-12 bg-gray-200 rounded" /><div className="h-3 w-12 bg-gray-200 rounded" /></div>
+            <div className="flex flex-col items-center gap-2"><div className="h-8 w-12 bg-gray-200 rounded" /><div className="h-3 w-12 bg-gray-200 rounded" /></div>
+            <div className="flex flex-col items-center gap-2"><div className="h-8 w-12 bg-gray-200 rounded" /><div className="h-3 w-12 bg-gray-200 rounded" /></div>
+          </div>
+        </div>
       </div>
     )
   }

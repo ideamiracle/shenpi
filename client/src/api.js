@@ -63,8 +63,14 @@ export const voteApi = {
     body: JSON.stringify({ user_id: userId, type }),
   }),
 
-  // 获取投票状态
+  // 获取单个投票状态
   getVoteStatus: (postId, userId) => request(`/posts/${postId}/vote/${userId}`),
+
+  // 批量获取投票状态（一次查询替代 N 次）
+  getBatchVoteStatus: (userId, postIds) => request('/votes/batch', {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, post_ids: postIds }),
+  }),
 };
 
 // 评论相关

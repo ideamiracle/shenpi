@@ -257,11 +257,27 @@ app.get('/api/posts', async (req, res) => {
     [...params, Number(limit), Number(offset)]
   );
 
-  const posts = [];
-  for (const post of postsResult.rows) {
-    const imgs = await db.execute("SELECT url FROM post_images WHERE post_id = ? ORDER BY sort_order", [post.id]);
-    posts.push({ ...post, images: imgs.rows.map(r => r.url), anonymous: !!post.anonymous });
+  // 批量获取所有图片（一次查询替代 N 次）
+  const postRows = postsResult.rows;
+  const imagesMap = {};
+  if (postRows.length > 0) {
+    const placeholders = postRows.map(() => '?').join(',');
+    const postIds = postRows.map(r => r.id);
+    const allImages = await db.execute(
+      `SELECT post_id, url FROM post_images WHERE post_id IN (${placeholders}) ORDER BY sort_order`,
+      postIds
+    );
+    allImages.rows.forEach(img => {
+      if (!imagesMap[img.post_id]) imagesMap[img.post_id] = [];
+      imagesMap[img.post_id].push(img.url);
+    });
   }
+
+  const posts = postRows.map(post => ({
+    ...post,
+    images: imagesMap[post.id] || [],
+    anonymous: !!post.anonymous
+  }));
 
   res.json({ posts, total, page: Number(page), limit: Number(limit) });
 });
