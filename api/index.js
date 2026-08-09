@@ -169,9 +169,11 @@ app.get('/api/users/:id', async (req, res) => {
 app.get('/api/posts', async (req, res) => {
   const { page = 1, limit = 10, category, sort = 'hot' } = req.query;
   const offset = (Number(page) - 1) * Number(limit);
-  let params = [];
+  const params = [];
 
-  let where = "WHERE p.status = 'active'";
+  let where = "WHERE p.status = $1";
+  params.push('active');
+
   if (category && category !== '全部') {
     where += ` AND p.category = $${params.length + 1}`;
     params.push(category);
@@ -181,15 +183,15 @@ app.get('/api/posts', async (req, res) => {
   if (sort === 'new') orderBy = 'ORDER BY p.created_at DESC';
   if (sort === 'controversial') orderBy = 'ORDER BY ABS(p.approve_count - p.reject_count) ASC, (p.approve_count + p.reject_count) DESC';
 
-  // PostgreSQL 用 $1, $2 占位符
+  // 总数查询
   const countSql = `SELECT COUNT(*) as total FROM posts p ${where}`;
-  const totalResult = await sql(countSql.replace(/\$(\d+)/g, (_, n) => `$${n}`), ...params);
+  const totalResult = await sql(countSql, params);
   const total = Number(totalResult[0]?.total || 0);
 
+  // 列表查询
   const listParams = [...params, Number(limit), Number(offset)];
-  // 直接用参数化查询
-  let queryStr = `SELECT p.*, u.nickname as author_name, u.avatar as author_avatar FROM posts p LEFT JOIN users u ON p.author_id = u.id ${where} ${orderBy} LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`;
-  const listResult = await sql(queryStr.replace(/\$(\d+)/g, (_, n) => `$${n}`), ...listParams);
+  const listSql = `SELECT p.*, u.nickname as author_name, u.avatar as author_avatar FROM posts p LEFT JOIN users u ON p.author_id = u.id ${where} ${orderBy} LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`;
+  const listResult = await sql(listSql, listParams);
 
   const posts = [];
   for (const post of listResult) {
@@ -289,16 +291,17 @@ app.get('/api/posts/:id/vote/:userId', async (req, res) => {
 // ========== 评论 API ==========
 app.get('/api/posts/:id/comments', async (req, res) => {
   const { type, sort = 'new' } = req.query;
-  let orderBy = 'ORDER BY c.created_at DESC';
-  if (sort === 'hot') orderBy = 'ORDER BY c.like_count DESC, c.created_at DESC';
+  const orderClause = sort === 'hot'
+    ? 'c.like_count DESC, c.created_at DESC'
+    : 'c.created_at DESC';
 
-  const rows = await sql`
-    SELECT c.*, u.nickname as author_name, u.avatar as author_avatar,
-           (SELECT v.type FROM votes v WHERE v.post_id = c.post_id AND v.user_id = c.user_id LIMIT 1) as vote_type
-    FROM comments c LEFT JOIN users u ON c.user_id = u.id
-    WHERE c.post_id = ${req.params.id}
-    ORDER BY ${orderBy === 'ORDER BY c.like_count DESC, c.created_at DESC' ? sql`c.like_count DESC, c.created_at DESC` : sql`c.created_at DESC`}
-  `;
+  const rows = await sql(
+    `SELECT c.*, u.nickname as author_name, u.avatar as author_avatar,
+            (SELECT v.type FROM votes v WHERE v.post_id = c.post_id AND v.user_id = c.user_id LIMIT 1) as vote_type
+     FROM comments c LEFT JOIN users u ON c.user_id = u.id
+     WHERE c.post_id = $1 ORDER BY ${orderClause}`,
+    [req.params.id]
+  );
 
   let comments = rows;
   if (type === 'approve') comments = rows.filter(c => c.vote_type === 'approve');
