@@ -109,7 +109,7 @@ export default function HomePage({ onGoToDetail, user, requireLogin }) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* 顶部 Header */}
+      {/* 顶部 Header：标题 + 分类标签 */}
       <header className="sticky top-0 z-40 bg-white shadow-sm">
         <div className="px-4 py-3">
           <h1 className="text-xl font-bold text-center">
@@ -136,30 +136,33 @@ export default function HomePage({ onGoToDetail, user, requireLogin }) {
             ))}
           </div>
         </div>
+      </header>
 
-        {/* 排序选项 */}
-        <div className="px-4 pb-2 flex gap-4 border-b border-gray-100">
+      {/* 数据汇总（仅全部类别显示） */}
+      {category === '全部' && stats && <StatsBar stats={stats} />}
+
+      {/* 排序选项（独立卡片，醒目显示） */}
+      <div className="px-4 pt-3 pb-1">
+        <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-2 shadow-sm">
+          <span className="text-xs text-gray-400 mr-1">排序</span>
           {SORT_OPTIONS.map(opt => (
             <button
               key={opt.value}
               onClick={() => setSort(opt.value)}
-              className={`text-sm pb-2 transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                 sort === opt.value
-                  ? 'text-indigo-600 font-medium border-b-2 border-indigo-600'
-                  : 'text-gray-500'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
               }`}
             >
               {opt.label}
             </button>
           ))}
         </div>
-      </header>
-
-      {/* 数据汇总（仅全部类别显示） */}
-      {category === '全部' && stats && <StatsBar stats={stats} />}
+      </div>
 
       {/* 申请列表 */}
-      <div className="px-4 py-4">
+      <div className="px-4 py-2">
         {/* 骨架屏加载 */}
         {initialLoad && loading && (
           <>
