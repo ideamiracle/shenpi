@@ -1,14 +1,17 @@
 {
+  "version": 2,
   "buildCommand": "cd client && npm install && npm run build",
   "outputDirectory": "client/dist",
-  "installCommand": "cd client && npm install",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index" }
+    { "source": "/api/(.*)", "destination": "/api/index" },
+    { "source": "/((?!api).*)", "destination": "/client/dist/$1" }
   ],
   "functions": {
     "api/index.js": {
+      "runtime": "@vercel/node@3",
       "memory": 512,
-      "maxDuration": 10
+      "maxDuration": 15,
+      "includeFiles": "node_modules/**"
     }
   }
 }
